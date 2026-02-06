@@ -1,22 +1,10 @@
 
-
-
 import Link from "next/link";
 import Image from "next/image";
 
 import { Button } from "@/components/ui/button";
-import InterviewCard from "@/components/InterviewCard";
 
 async function Home() {
-    // 🔕 Backend + auth removed for deployment
-    const userId = "guest-id";
-
-    const userInterviews: any[] = [];
-    const allInterview: any[] = [];
-
-    const hasPastInterviews = userInterviews.length > 0;
-    const hasUpcomingInterviews = allInterview.length > 0;
-
     return (
         <>
             {/* HERO SECTION */}
@@ -34,56 +22,46 @@ async function Home() {
 
                 <Image
                     src="/robot.png"
-                    alt="robo-dude"
+                    alt="AI Interview Assistant"
                     width={400}
                     height={400}
                     className="max-sm:hidden"
                 />
             </section>
 
-            {/* PAST INTERVIEWS */}
-            <section className="flex flex-col gap-6 mt-8">
-                <h2>Your Interviews</h2>
-
-                <div className="interviews-section">
-                    {hasPastInterviews ? (
-                        userInterviews.map((interview) => (
-                            <InterviewCard
-                                key={interview.id}
-                                userId={userId}
-                                interviewId={interview.id}
-                                role={interview.role}
-                                type={interview.type}
-                                techstack={interview.techstack}
-                                createdAt={interview.createdAt}
-                            />
-                        ))
-                    ) : (
-                        <p>You haven&apos;t taken any interviews yet</p>
-                    )}
+            {/* INFO SECTION (REPLACEMENT) */}
+            <section className="mt-16 space-y-12 max-w-3xl">
+                <div>
+                    <h2 className="text-2xl font-semibold text-white">
+                        How PrepWise Helps You
+                    </h2>
+                    <ul className="mt-4 space-y-3 text-gray-300">
+                        <li> Practice real interview questions with AI</li>
+                        <li>Get instant feedback on your answers</li>
+                        <li> Improve communication & confidence</li>
+                        <li>Experience real interview-like conversations</li>
+                    </ul>
                 </div>
-            </section>
 
-            {/* AVAILABLE INTERVIEWS */}
-            <section className="flex flex-col gap-6 mt-8">
-                <h2>Take Interviews</h2>
+                <div>
+                    <h2 className="text-2xl font-semibold text-white">
+                        Who Is This For?
+                    </h2>
+                    <ul className="mt-4 space-y-3 text-gray-300">
+                        <li> Students preparing for placements</li>
+                        <li> Freshers & job seekers</li>
+                        <li> Anyone practicing mock interviews</li>
+                    </ul>
+                </div>
 
-                <div className="interviews-section">
-                    {hasUpcomingInterviews ? (
-                        allInterview.map((interview) => (
-                            <InterviewCard
-                                key={interview.id}
-                                userId={userId}
-                                interviewId={interview.id}
-                                role={interview.role}
-                                type={interview.type}
-                                techstack={interview.techstack}
-                                createdAt={interview.createdAt}
-                            />
-                        ))
-                    ) : (
-                        <p>There are no interviews available</p>
-                    )}
+                <div>
+                    <h2 className="text-2xl font-semibold text-white">
+                        Demo Mode
+                    </h2>
+                    <p className="mt-4 text-gray-300">
+                        Interview history and personalized insights will appear here
+                        once you complete practice interviews.
+                    </p>
                 </div>
             </section>
         </>

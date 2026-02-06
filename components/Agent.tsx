@@ -1,9 +1,8 @@
 
-
 "use client";
 
 import Image from "next/image";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
 import { cn } from "@/lib/utils";
@@ -29,17 +28,25 @@ const Agent = ({
                    questions,
                }: AgentProps) => {
     const router = useRouter();
+
     const [callStatus, setCallStatus] = useState<CallStatus>(CallStatus.INACTIVE);
     const [messages, setMessages] = useState<SavedMessage[]>([]);
     const [isSpeaking, setIsSpeaking] = useState(false);
     const [lastMessage, setLastMessage] = useState<string>("");
 
+    // ✅ ensure summary is requested only once per call
+    const summaryRequestedRef = useRef(false);
+
+    /* -------------------- VAPI EVENTS -------------------- */
     useEffect(() => {
         const onCallStart = () => setCallStatus(CallStatus.ACTIVE);
         const onCallEnd = () => setCallStatus(CallStatus.FINISHED);
 
         const onMessage = (message: any) => {
-            if (message.type === "transcript" && message.transcriptType === "final") {
+            if (
+                message?.type === "transcript" &&
+                message?.transcriptType === "final"
+            ) {
                 setMessages((prev) => [
                     ...prev,
                     { role: message.role, content: message.transcript },
@@ -65,17 +72,98 @@ const Agent = ({
         };
     }, []);
 
+    /* -------------------- LIVE TRANSCRIPT -------------------- */
     useEffect(() => {
-        if (messages.length > 0) {
+        if (messages.length > 0 && callStatus !== CallStatus.FINISHED) {
             setLastMessage(messages[messages.length - 1].content);
         }
+    }, [messages, callStatus]);
 
+    /* -------------------- SUMMARY GENERATOR -------------------- */
+    const generateSummary = useCallback(
+        async (msgs: SavedMessage[]) => {
+            if (summaryRequestedRef.current) return;
+            summaryRequestedRef.current = true;
+
+            const transcript = msgs
+                .map((m) => `${m.role}: ${m.content}`)
+                .join("\n");
+
+            // ✅ EARLY END / SHORT INTERVIEW
+            if (transcript.trim().length < 100) {
+                setLastMessage(
+                    "Interview completed.\n\n" +
+                    "You ended the interview early, so a full evaluation could not be generated.\n\n" +
+                    "Tip:\n" +
+                    "• Try answering at least 3–4 questions\n" +
+                    "• Speak in complete sentences"
+                );
+                return;
+            }
+
+            try {
+                const res = await fetch("/api/interview-summary", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ transcript }),
+                });
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    console.error("Summary API error:", data);
+                    setLastMessage(
+                        "Interview completed.\n\n" +
+                        "You ended the interview early, so a full evaluation could not be generated.\n\n" +
+                        "Tip:\n" +
+                        "• Try answering at least 3–4 questions\n" +
+                        "• Speak in complete sentences"
+                    );
+                    return;
+                }
+
+                if (typeof data?.summary === "string" && data.summary.trim()) {
+                    setLastMessage(data.summary);
+                } else {
+                    setLastMessage(
+                        "Interview completed.\n\n" +
+                        "You ended the interview early, so a full evaluation could not be generated.\n\n" +
+                        "Tip:\n" +
+                        "• Try answering at least 3–4 questions\n" +
+                        "• Speak in complete sentences"
+                    );
+                }
+            } catch (error) {
+                console.error("Summary fetch error:", error);
+                setLastMessage(
+                    "Interview completed.\n\n" +
+                    "You ended the interview early, so a full evaluation could not be generated.\n\n" +
+                    "Tip:\n" +
+                    "• Try answering at least 3–4 questions\n" +
+                    "• Speak in complete sentences"
+                );
+            }
+        },
+        [] // ❗ no stale closure
+    );
+
+    /* -------------------- CALL END → SUMMARY -------------------- */
+    useEffect(() => {
         if (callStatus === CallStatus.FINISHED) {
-            router.push("/");
-        }
-    }, [messages, callStatus, router]);
+            const timeout = setTimeout(() => {
+                generateSummary(messages); // ✅ always latest messages
+            }, 700);
 
+            return () => clearTimeout(timeout);
+        }
+    }, [callStatus, messages, generateSummary]);
+
+    /* -------------------- START CALL -------------------- */
     const handleCall = async () => {
+        summaryRequestedRef.current = false;
+        setMessages([]);
+        setLastMessage("");
+
         try {
             setCallStatus(CallStatus.CONNECTING);
 
@@ -83,46 +171,29 @@ const Agent = ({
                 ? questions.map((q: string) => `- ${q}`).join("\n")
                 : "";
 
-            if (!process.env.NEXT_PUBLIC_VAPI_API_KEY) {
-                console.error("VAPI API key missing");
-                return;
-            }
-
-
-            await vapi.start(
-                "aaa4fd93-4c39-458c-aca4-f7df2fbb8717",
-                {
-                    variableValues: {
-                        username: userName ?? "Guest",
-                        userid: userId ?? "",
-                        questions: formattedQuestions,
-                    },
-                }
-            );
-
+            await vapi.start("aaa4fd93-4c39-458c-aca4-f7df2fbb8717", {
+                variableValues: {
+                    username: userName ?? "Guest",
+                    userid: userId ?? "",
+                    questions: formattedQuestions,
+                },
+            });
         } catch (error: any) {
-            if (
-                typeof error?.message === "string" &&
-                error.message.toLowerCase().includes("meeting has ended")
-            ) {
-                console.log("Call ended normally");
-                return;
-            }
-
             console.error("Vapi error:", error);
             setCallStatus(CallStatus.INACTIVE);
         }
     };
 
+    /* -------------------- END CALL -------------------- */
     const handleDisconnect = () => {
         setCallStatus(CallStatus.FINISHED);
         vapi.stop();
     };
 
+    /* -------------------- UI -------------------- */
     return (
         <>
             <div className="call-view">
-                {/* AI Interviewer */}
                 <div className="card-interviewer">
                     <div className="avatar">
                         <Image
@@ -137,31 +208,22 @@ const Agent = ({
                     <h3>AI Interviewer</h3>
                 </div>
 
-                {/* User */}
+
                 <div className="card-border">
                     <div className="card-content">
-                        <Image
-                            src="/user-avatar.png"
-                            alt="user"
-                            width={120}
-                            height={120}
-                            className="rounded-full object-cover size-[120px]"
-                        />
+                        <div className="flex items-center justify-center size-[120px] rounded-full bg-gray-700 text-white text-4xl font-semibold">
+                            {userName?.charAt(0)?.toUpperCase() || "G"}
+                        </div>
                         <h3>{userName}</h3>
                     </div>
                 </div>
+
             </div>
 
-            {messages.length > 0 && (
+            {lastMessage && (
                 <div className="transcript-border">
                     <div className="transcript">
-                        <p
-                            key={lastMessage}
-                            className={cn(
-                                "transition-opacity duration-500 opacity-0",
-                                "animate-fadeIn opacity-100"
-                            )}
-                        >
+                        <p className="animate-fadeIn whitespace-pre-line">
                             {lastMessage}
                         </p>
                     </div>
@@ -170,18 +232,8 @@ const Agent = ({
 
             <div className="w-full flex justify-center">
                 {callStatus !== "ACTIVE" ? (
-                    <button className="relative btn-call" onClick={handleCall}>
-            <span
-                className={cn(
-                    "absolute animate-ping rounded-full opacity-75",
-                    callStatus !== "CONNECTING" && "hidden"
-                )}
-            />
-                        <span className="relative">
-              {callStatus === "INACTIVE" || callStatus === "FINISHED"
-                  ? "Call"
-                  : ". . ."}
-            </span>
+                    <button className="btn-call" onClick={handleCall}>
+                        {callStatus === "CONNECTING" ? "..." : "Call"}
                     </button>
                 ) : (
                     <button className="btn-disconnect" onClick={handleDisconnect}>
