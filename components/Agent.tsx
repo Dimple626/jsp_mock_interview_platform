@@ -7,7 +7,6 @@ import { useRouter } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 import { vapi } from "@/lib/vapi.sdk";
-import { interviewer } from "@/constants";
 
 enum CallStatus {
     INACTIVE = "INACTIVE",
@@ -38,7 +37,7 @@ const Agent = ({
         const onCallStart = () => setCallStatus(CallStatus.ACTIVE);
         const onCallEnd = () => setCallStatus(CallStatus.FINISHED);
 
-        const onMessage = (message: Message) => {
+        const onMessage = (message: any) => {
             if (message.type === "transcript" && message.transcriptType === "final") {
                 setMessages((prev) => [
                     ...prev,
@@ -70,32 +69,30 @@ const Agent = ({
             setLastMessage(messages[messages.length - 1].content);
         }
 
-        // ⛔ Feedback generation removed (YouTube-style deploy)
         if (callStatus === CallStatus.FINISHED) {
             router.push("/");
         }
     }, [messages, callStatus, router]);
 
     const handleCall = async () => {
-        setCallStatus(CallStatus.CONNECTING);
+        try {
+            setCallStatus(CallStatus.CONNECTING);
 
-        if (type === "generate") {
-            await vapi.start(process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID!, {
+            const formattedQuestions = questions
+                ? questions.map((q: string) => `- ${q}`).join("\n")
+                : "";
+
+            await vapi.start({
+                assistantId: "aaa4fd93-4c39-458c-aca4-f7df2fbb8717",
                 variableValues: {
                     username: userName,
                     userid: userId,
-                },
-            });
-        } else {
-            const formattedQuestions = questions
-                ? questions.map((q) => `- ${q}`).join("\n")
-                : "";
-
-            await vapi.start(interviewer, {
-                variableValues: {
                     questions: formattedQuestions,
                 },
             });
+        } catch (error) {
+            console.error("Vapi start error:", error);
+            setCallStatus(CallStatus.INACTIVE);
         }
     };
 

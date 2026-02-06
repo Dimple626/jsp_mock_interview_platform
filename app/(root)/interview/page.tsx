@@ -1,26 +1,23 @@
 
+
+"use client";
+
 import Agent from "@/components/Agent";
 
-const Page = async () => {
-    // 🔕 Auth temporarily removed for deployment
-    const user = {
-        name: "Guest User",
-        id: "guest-id",
-        profileURL: null,
-    };
-
+export default function InterviewPage() {
     return (
-        <>
-            <h3>Interview generation</h3>
+        <div className="relative min-h-screen bg-gray-900 text-white">
 
-            <Agent
-                userName={user.name}
-                userId={user.id}
-                type="generate"
-            />
-        </>
+            {/* ❌ BACKGROUND LAYER (sirf visual, NO clicks) */}
+            <div className="absolute inset-0 bg-black/40 backdrop-blur-xl pointer-events-none" />
+
+            {/* ✅ CONTENT LAYER (CLICKABLE) */}
+            <div className="relative z-50 flex items-center justify-center min-h-screen pointer-events-auto">
+                <Agent />
+            </div>
+
+        </div>
     );
-};
+}
 
-export default Page;
 
