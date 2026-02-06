@@ -1,17 +1,21 @@
+
 import Agent from "@/components/Agent";
-import { getCurrentUser } from "@/lib/actions/auth.action";
 
 const Page = async () => {
-    const user = await getCurrentUser();
+    // 🔕 Auth temporarily removed for deployment
+    const user = {
+        name: "Guest User",
+        id: "guest-id",
+        profileURL: null,
+    };
 
     return (
         <>
             <h3>Interview generation</h3>
 
             <Agent
-                userName={user?.name!}
-                userId={user?.id}
-                profileImage={user?.profileURL}
+                userName={user.name}
+                userId={user.id}
                 type="generate"
             />
         </>
@@ -19,3 +23,4 @@ const Page = async () => {
 };
 
 export default Page;
+
