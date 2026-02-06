@@ -13,11 +13,17 @@ export default function InterviewPage() {
 
             {/* ✅ CONTENT LAYER (CLICKABLE) */}
             <div className="relative z-50 flex items-center justify-center min-h-screen pointer-events-auto">
-                <Agent />
+                <Agent
+                    userName="Guest"
+                    userId="guest"
+                    interviewId="demo"
+                    type="interview"
+                    questions={[]}
+                />
+
+
             </div>
 
         </div>
     );
 }
-
-

@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import Image from "next/image";
@@ -82,16 +83,33 @@ const Agent = ({
                 ? questions.map((q: string) => `- ${q}`).join("\n")
                 : "";
 
-            await vapi.start({
-                assistantId: "aaa4fd93-4c39-458c-aca4-f7df2fbb8717",
-                variableValues: {
-                    username: userName,
-                    userid: userId,
-                    questions: formattedQuestions,
-                },
-            });
-        } catch (error) {
-            console.error("Vapi start error:", error);
+            if (!process.env.NEXT_PUBLIC_VAPI_API_KEY) {
+                console.error("VAPI API key missing");
+                return;
+            }
+
+
+            await vapi.start(
+                "aaa4fd93-4c39-458c-aca4-f7df2fbb8717",
+                {
+                    variableValues: {
+                        username: userName ?? "Guest",
+                        userid: userId ?? "",
+                        questions: formattedQuestions,
+                    },
+                }
+            );
+
+        } catch (error: any) {
+            if (
+                typeof error?.message === "string" &&
+                error.message.toLowerCase().includes("meeting has ended")
+            ) {
+                console.log("Call ended normally");
+                return;
+            }
+
+            console.error("Vapi error:", error);
             setCallStatus(CallStatus.INACTIVE);
         }
     };
